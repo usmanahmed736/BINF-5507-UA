@@ -7,44 +7,79 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score
 
 # 1. Impute Missing Values
-def impute_missing_values(data, strategy='mean'):
-    """
-    Fill missing values in the dataset.
-    :param data: pandas DataFrame
-    :param strategy: str, imputation method ('mean', 'median', 'mode')
-    :return: pandas DataFrame
-    """
+def impute_missing_values(data, strategy='mean'): #Define a function for imputing missing values, parameters are the data source and the strategy for imputing
+    
+    data_copy = data.copy() #make a copy of the data to avoid messing up the original
+
+    for column in data_copy.columns:
+        if column == 'target': #skip the target column
+            continue
+
+        if data_copy[column].isnull().sum() > 0: #if the column is missing more than 0 entries, replace it with either the mean, median or mode of that column (for numerical columns only)
+            if data_copy[column].dtype in ['float64', 'int64']:
+                if strategy == 'mean':
+                    data_copy[column].fillna(data_copy[column].mean(), inplace=True)
+                elif strategy == 'median':
+                    data_copy[column].fillna(data_copy[column].median(), inplace=True)
+                elif strategy == 'mode':
+                    data_copy[column].fillna(data_copy[column].mode()[0], inplace=True)
+            else:
+                data_copy[column].fillna(data_copy[column].mode()[0], inplace=True) #for non numerical columns, always just use the mode to fill in missing data.
+
+    return data_copy
+
     # TODO: Fill missing values based on the specified strategy
-    pass
+    
+
 
 # 2. Remove Duplicates
-def remove_duplicates(data):
+def remove_duplicates(data): #define a function called remove duplicates, with parameter data.
     """
     Remove duplicate rows from the dataset.
     :param data: pandas DataFrame
     :return: pandas DataFrame
     """
     # TODO: Remove duplicate rows
-    pass
+    return data.drop_duplicates() #Within the data variable, remove any duplicates.
 
 # 3. Normalize Numerical Data
-def normalize_data(data,method='minmax'):
+def normalize_data(data,method='minmax'): #Define a function called normalize_data, with parameters of data and method (default method is minmax)
     """Apply normalization to numerical features.
     :param data: pandas DataFrame
     :param method: str, normalization method ('minmax' (default) or 'standard')
     """
     # TODO: Normalize numerical data using Min-Max or Standard scaling
-    pass
+    data_copy = data.copy() #Make a copy of the data first before messing with it
+
+    numeric_cols = data_copy.select_dtypes(include=['float64', 'int64']).columns #If the column is numeric, add it to the variable numeric_cols
+    numeric_cols = [col for col in numeric_cols if col != 'target'] #Target column is also numeric, this line ensures we exclude it though
+
+    if method == 'minmax': #Decide if the method of normalization is minmax or standard, and assign it to the variable scaler
+        scaler = MinMaxScaler()
+    elif method == 'standard':
+        scaler = StandardScaler()
+    else:
+        raise ValueError("Invalid method. Use 'minmax' or 'standard'.")
+
+    data_copy[numeric_cols] = scaler.fit_transform(data_copy[numeric_cols]) #Actually transform the data using the scaler variable which has the assigned method.
+
+    return data_copy
 
 # 4. Remove Redundant Features   
-def remove_redundant_features(data, threshold=0.9):
+def remove_redundant_features(data, threshold=0.9): #Define a function called remove_redundant_features with the parameters data and threshold, which is 0.9 by default. Threshold refers to correlation coefficient that will define what are redundant features
     """Remove redundant or duplicate columns.
     :param data: pandas DataFrame
     :param threshold: float, correlation threshold
     :return: pandas DataFrame
     """
     # TODO: Remove redundant features based on the correlation threshold (HINT: you can use the corr() method)
-    pass
+    data_copy = data.copy() #Make a copy of the data
+    numeric_data = data_copy.select_dtypes(include=['float64', 'int64']) #Assign numeric columns to a variable called numeric_data
+    corr_matrix = numeric_data.corr().abs() #Using numeric_data, create a correlation matrix and check the correlation of each feature to each other. Abs ensures we look at absolute values, whether negative or positive corelations are revealed
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)) #This line ensures we do not repeat comparisons. For example, we don't have to compare A --> B and also B --> A. Only one of those is fine since both will have the same correlation
+    to_drop = [column for column in upper.columns if any(upper[column] > threshold)] #If the correlation between features is higher than the threshold (0.9 by default), assign them to the variable to_drop
+    data_copy.drop(columns=to_drop, inplace=True) #Drop the columns in the to_drop variable. We always drop the variable that occurs later in the data frame. So if A --> B correlation is >0.9, we would drop B.
+    return data_copy
 
 # ---------------------------------------------------
 
